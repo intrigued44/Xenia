@@ -1,0 +1,147 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Macro Simulation: INR Depreciation Impact</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+            .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        </style>
+    </head>
+    <body class="p-8">
+        <div class="max-w-6xl mx-auto">
+            <header class="mb-8 text-center">
+                <h1 class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-cyan-400">Elite AI Business Simulation Engine</h1>
+                <p class="text-slate-400 mt-2 text-lg">Scenario: Impact of a 5.0% Depreciation in the Indian Rupee (INR)</p>
+            </header>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="glass p-6 rounded-2xl">
+                    <h3 class="text-sm text-slate-400 uppercase tracking-wider">Top Boom Sector</h3>
+                    <div class="text-3xl font-bold text-emerald-400 mt-2">IT Services</div>
+                    <p class="text-sm mt-1 text-slate-300">TCS, Infosys, Wipro</p>
+                </div>
+                <div class="glass p-6 rounded-2xl">
+                    <h3 class="text-sm text-slate-400 uppercase tracking-wider">Top Risk Sector</h3>
+                    <div class="text-3xl font-bold text-rose-400 mt-2">Oil & Gas</div>
+                    <p class="text-sm mt-1 text-slate-300">Reliance, BPCL, ONGC</p>
+                </div>
+                <div class="glass p-6 rounded-2xl">
+                    <h3 class="text-sm text-slate-400 uppercase tracking-wider">Secondary Effect</h3>
+                    <div class="text-3xl font-bold text-amber-400 mt-2">Inflation Risk</div>
+                    <p class="text-sm mt-1 text-slate-300">RBI Rate Hike Probability: High</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="glass p-6 rounded-2xl">
+                    <h2 class="text-xl font-semibold mb-4">Sector Impact Analysis</h2>
+                    <canvas id="impactChart"></canvas>
+                </div>
+                
+                <div class="glass p-6 rounded-2xl overflow-y-auto" style="max-height: 400px;">
+                    <h2 class="text-xl font-semibold mb-4">Detailed Stock Matrix</h2>
+                    <div class="space-y-4">
+    
+                        <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-lg">IT Services</span>
+                                <span class="font-bold text-emerald-400">+6.6%</span>
+                            </div>
+                            <p class="text-sm text-slate-400">Key Beneficiaries/Risks: <span class="text-slate-200">TCS, Infosys, Wipro, HCL Tech</span></p>
+                        </div>
+        
+                        <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-lg">Pharmaceuticals</span>
+                                <span class="font-bold text-emerald-400">+4.2%</span>
+                            </div>
+                            <p class="text-sm text-slate-400">Key Beneficiaries/Risks: <span class="text-slate-200">Sun Pharma, Dr Reddy's, Cipla</span></p>
+                        </div>
+        
+                        <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-lg">Banking</span>
+                                <span class="font-bold text-rose-400">-0.3%</span>
+                            </div>
+                            <p class="text-sm text-slate-400">Key Beneficiaries/Risks: <span class="text-slate-200">HDFC Bank, ICICI Bank, SBI</span></p>
+                        </div>
+        
+                        <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-lg">Automobiles</span>
+                                <span class="font-bold text-rose-400">-2.0%</span>
+                            </div>
+                            <p class="text-sm text-slate-400">Key Beneficiaries/Risks: <span class="text-slate-200">Tata Motors, Maruti Suzuki, M&M</span></p>
+                        </div>
+        
+                        <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-lg">FMCG</span>
+                                <span class="font-bold text-rose-400">-2.83%</span>
+                            </div>
+                            <p class="text-sm text-slate-400">Key Beneficiaries/Risks: <span class="text-slate-200">HUL, Britannia, Nestle India</span></p>
+                        </div>
+        
+                        <div class="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="font-semibold text-lg">Oil & Gas</span>
+                                <span class="font-bold text-rose-400">-5.85%</span>
+                            </div>
+                            <p class="text-sm text-slate-400">Key Beneficiaries/Risks: <span class="text-slate-200">Reliance, BPCL, ONGC</span></p>
+                        </div>
+        
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-8 glass p-6 rounded-2xl">
+                <h2 class="text-xl font-semibold mb-2">Simulation Mechanics & Assumptions</h2>
+                <ul class="list-disc pl-5 text-slate-300 space-y-2 text-sm">
+                    <li><strong>Mechanism:</strong> INR depreciation increases INR realizations for export-heavy businesses while dramatically inflating input costs for import-dependent sectors.</li>
+                    <li><strong>Second Order Effects:</strong> Banking and Autos suffer slight negative beta due to imported inflation forcing the RBI to potentially hike interest rates, lowering credit demand.</li>
+                    <li><strong>Confidence Level:</strong> HIGH for directional moves in IT and Pharma. MEDIUM for Banking.</li>
+                </ul>
+            </div>
+        </div>
+
+        <script>
+            const ctx = document.getElementById('impactChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ["IT Services", "Pharmaceuticals", "Banking", "Automobiles", "FMCG", "Oil & Gas"],
+                    datasets: [{
+                        label: 'Projected Sector Impact (%)',
+                        data: [6.6, 4.2, -0.3, -2.0, -2.83, -5.85],
+                        backgroundColor: ["rgba(52, 211, 153, 0.8)", "rgba(52, 211, 153, 0.8)", "rgba(251, 113, 133, 0.8)", "rgba(251, 113, 133, 0.8)", "rgba(251, 113, 133, 0.8)", "rgba(251, 113, 133, 0.8)"],
+                        borderWidth: 0,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        </script>
+    </body>
+    </html>
+    

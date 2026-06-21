@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+  body {
+    background: #f8fafc;
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: #1e293b;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+  .card {
+    background: white;
+    width: 500px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .page {
+    display: none;
+    animation: fadeIn 0.3s;
+  }
+  .page.active {
+    display: block;
+  }
+  @keyframes fadeIn { from {opacity:0} to {opacity:1} }
+  h1 { margin-top: 0; font-size: 28px; color: #0f172a; }
+  p { color: #64748b; line-height: 1.6; }
+  
+  .input-group { margin-top: 20px; }
+  input[type="password"] {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  
+  .btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+  .btn:hover { background: #2563eb; }
+  .btn-outline {
+    background: transparent;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+    margin-left: 10px;
+  }
+  .btn-outline:hover { background: #f1f5f9; }
+  
+  .industry-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  .industry-btn {
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: white;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .industry-btn:hover, .industry-btn.selected {
+    border-color: #3b82f6;
+    background: #eff6ff;
+  }
+  
+  .privacy-list {
+    margin-top: 20px;
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .privacy-list div {
+    margin-bottom: 12px;
+    display: flex;
+    gap: 10px;
+  }
+  
+  .actions {
+    display: flex;
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    
+    <!-- Page 1: Welcome -->
+    <div id="page-1" class="page active">
+      <h1 style="color:#3b82f6">Xenia</h1>
+      <h2 style="margin-top:-10px; color:#0f172a">Welcome to your organization's intelligence layer.</h2>
+      <p>Xenia runs silently in the background, learning how your team actually works to automate tasks and build a secure company brain.</p>
+      <button class="btn" onclick="nextPage(2)">Get Started</button>
+    </div>
+    
+    <!-- Page 2: API Key -->
+    <div id="page-2" class="page">
+      <h1>Connect AI</h1>
+      <p>Enter your Anthropic API key to enable document generation and workflow analysis.</p>
+      <div class="input-group">
+        <input type="password" id="api-key" placeholder="sk-ant-...">
+        <div style="font-size: 12px; color: #94a3b8;">Get your key at console.anthropic.com</div>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="saveKeyAndNext()">Continue</button>
+        <button class="btn btn-outline" onclick="nextPage(3)">Skip for now</button>
+      </div>
+    </div>
+    
+    <!-- Page 3: Industry -->
+    <div id="page-3" class="page">
+      <h1>Your Industry</h1>
+      <p>What type of business is this? This helps Xenia understand context.</p>
+      <div class="industry-grid">
+        <button class="industry-btn" onclick="selectInd('pharmacy')">💊 Pharmacy</button>
+        <button class="industry-btn" onclick="selectInd('clinic')">🏥 Clinic</button>
+        <button class="industry-btn" onclick="selectInd('retail')">🏪 Retail</button>
+        <button class="industry-btn" onclick="selectInd('manufacturing')">🏭 Manufacturing</button>
+        <button class="industry-btn" onclick="selectInd('other')">📋 Other</button>
+      </div>
+      <input type="hidden" id="selected-industry" value="other">
+      <div class="actions">
+        <button class="btn" onclick="nextPage(4)">Continue</button>
+      </div>
+    </div>
+    
+    <!-- Page 4: Privacy -->
+    <div id="page-4" class="page">
+      <h1>Privacy First</h1>
+      <p>Xenia operates under strict privacy guarantees.</p>
+      <div class="privacy-list">
+        <div><span>🔒</span> Local-First: Raw logs never leave this machine.</div>
+        <div><span>🚫</span> Auto-Redaction: Passwords and credit cards are ignored.</div>
+        <div><span>👁️</span> Exclusions: Banking and personal email are not tracked.</div>
+        <div><span>⏸️</span> Control: You can pause observation at any time.</div>
+      </div>
+      <div class="actions">
+        <button class="btn" onclick="finishSetup()" style="width:100%">I understand, start Xenia</button>
+      </div>
+    </div>
+    
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    function nextPage(num) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + num).classList.add('active');
+    }
+    
+    function selectInd(val) {
+      document.querySelectorAll('.industry-btn').forEach(b => b.classList.remove('selected'));
+      event.target.classList.add('selected');
+      document.getElementById('selected-industry').value = val;
+    }
+    
+    async function saveKeyAndNext() {
+      nextPage(3);
+    }
+    
+    function finishSetup() {
+        const configData = {
+            industry: document.getElementById('selected-industry').value,
+            setup_complete: true,
+            api_key: document.getElementById('api-key').value
+        };
+        try {
+            ipcRenderer.send('setup-complete', configData);
+            window.location.href = 'index.html';
+        } catch(e) {
+            alert('Failed to save configuration. Starting anyway.');
+            window.location.href = 'index.html';
+        }
+    }
+  </script>
+</body>
+</html>

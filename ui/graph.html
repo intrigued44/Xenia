@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Xenia — Process Graph</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+#graph-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+svg { width: 100%; height: 100%; }
+
+.node circle {
+  stroke: #ffffff;
+  stroke-width: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.node circle:hover {
+  stroke-width: 4px;
+  filter: brightness(1.1);
+}
+
+.node text {
+  font-size: 11px;
+  fill: #334155;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  font-weight: 500;
+}
+
+.link {
+  stroke: #cbd5e1;
+  stroke-opacity: 0.6;
+}
+
+.tooltip {
+  position: absolute;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 240px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 100;
+}
+
+.tooltip.visible { opacity: 1; }
+
+.tooltip h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+.tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.vault-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+
+.vault-personal { 
+  background: #dbeafe; color: #1d4ed8; 
+}
+.vault-role { 
+  background: #dcfce7; color: #15803d; 
+}
+.vault-team { 
+  background: #ede9fe; color: #7c3aed; 
+}
+.vault-organization { 
+  background: #fef9c3; color: #a16207; 
+}
+
+.app-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.app-pill {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+}
+
+#detail-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 320px;
+  height: 100%;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+  padding: 24px;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  overflow-y: auto;
+  z-index: 50;
+}
+
+#detail-panel.open {
+  transform: translateX(0);
+}
+
+#detail-panel h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 16px;
+}
+
+.detail-metric {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+
+.detail-metric-label {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detail-metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+}
+
+.contribute-btn {
+  width: 100%;
+  padding: 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+.contribute-btn:hover { background: #2563eb; }
+
+#close-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #64748b;
+}
+
+#toolbar {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+#toolbar h1 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.legend {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 10;
+}
+
+.legend h4 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+#empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  display: none;
+}
+
+#empty-state .icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+#empty-state h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+}
+
+#empty-state p {
+  color: #64748b;
+  max-width: 320px;
+}
+
+#stats-bar {
+  position: absolute;
+  top: 16px;
+  right: 340px;
+  display: flex;
+  gap: 16px;
+  z-index: 10;
+}
+
+.stat-chip {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.stat-chip span {
+  font-weight: 700;
+  color: #0f172a;
+}
+</style>
+</head>
+<body>
+
+<div id="graph-container">
+  <svg id="graph-svg"></svg>
+  
+  <div id="toolbar">
+    <button onclick="window.location.href='index.html'"
+      style="background:none;border:1px solid #e2e8f0;
+             border-radius:8px;padding:6px 12px;
+             cursor:pointer;font-size:13px;color:#475569">
+      ← Back
+    </button>
+    <h1>Xenia</h1>
+    <span style="color:#64748b;font-size:14px">
+      Process Intelligence Map
+    </span>
+  </div>
+
+  <div id="stats-bar">
+    <div class="stat-chip">
+      <span id="node-count">0</span> workflows
+    </div>
+    <div class="stat-chip">
+      <span id="edge-count">0</span> connections
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+  
+  <div id="empty-state">
+    <div class="icon">🕸</div>
+    <h2>Your Process Map</h2>
+    <p>Xenia will map your organization's workflows 
+    here as it learns how you work. Keep working 
+    normally — this map builds itself.</p>
+  </div>
+
+  <div id="detail-panel">
+    <button id="close-panel">×</button>
+    <div id="detail-content"></div>
+  </div>
+
+  <div class="legend">
+    <h4>Automation Potential</h4>
+    <div class="legend-item">
+      <div class="legend-dot" 
+           style="background:#ef4444"></div>
+      High — automate this
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" 
+           style="background:#f59e0b"></div>
+      Medium — document this
+    </div>
+    <div class="legend-item">
+      <div class="legend-dot" 
+           style="background:#10b981"></div>
+      Low — running well
+    </div>
+    <div class="legend-item" style="margin-top:8px">
+      <div class="legend-dot" 
+           style="background:#94a3b8;
+                  border-radius:2px"></div>
+      Node size = frequency
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:8000"
+const HEADERS = {"X-API-Key": "sk-test-key-123"}
+
+function getNodeColor(automation_potential) {
+  if (automation_potential > 0.7) return "#ef4444"
+  if (automation_potential > 0.4) return "#f59e0b"
+  return "#10b981"
+}
+
+function getNodeRadius(frequency) {
+  return Math.max(16, Math.min(48, 
+    10 + (frequency || 1) * 8
+  ))
+}
+
+function getVaultBadgeClass(vault_level) {
+  return `vault-${vault_level || "personal"}`
+}
+
+async function loadGraphData() {
+  try {
+    const res = await fetch(`${API}/v1/graph/data`, 
+      { headers: HEADERS }
+    )
+    if (!res.ok) throw new Error("API error")
+    return await res.json()
+  } catch(e) {
+    return { nodes: [], edges: [] }
+  }
+}
+
+function showEmptyState() {
+  document.getElementById("empty-state")
+    .style.display = "block"
+}
+
+function renderGraph(data) {
+  const { nodes, edges } = data
+
+  document.getElementById("node-count")
+    .textContent = nodes.length
+  document.getElementById("edge-count")
+    .textContent = edges.length
+
+  if (nodes.length === 0) {
+    showEmptyState()
+    return
+  }
+
+  const svg = d3.select("#graph-svg")
+  const width = window.innerWidth
+  const height = window.innerHeight
+  const tooltip = document.getElementById("tooltip")
+  const detailPanel = document.getElementById("detail-panel")
+  const detailContent = document.getElementById("detail-content")
+
+  svg.selectAll("*").remove()
+
+  // Zoom behavior
+  const zoom = d3.zoom()
+    .scaleExtent([0.3, 3])
+    .on("zoom", (event) => {
+      g.attr("transform", event.transform)
+    })
+  svg.call(zoom)
+
+  const g = svg.append("g")
+
+  // Force simulation
+  const simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(edges)
+      .id(d => d.id)
+      .distance(150)
+      .strength(0.5)
+    )
+    .force("charge", d3.forceManyBody()
+      .strength(-400)
+    )
+    .force("center", d3.forceCenter(
+      width / 2, height / 2
+    ))
+    .force("collision", d3.forceCollide()
+      .radius(d => getNodeRadius(d.frequency) + 10)
+    )
+
+  // Draw edges
+  const link = g.append("g")
+    .selectAll("line")
+    .data(edges)
+    .join("line")
+    .attr("class", "link")
+    .attr("stroke-width", d => 
+      Math.max(1, (d.strength || 0.3) * 4)
+    )
+
+  // Draw nodes
+  const node = g.append("g")
+    .selectAll("g")
+    .data(nodes)
+    .join("g")
+    .attr("class", "node")
+    .call(d3.drag()
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended)
+    )
+
+  node.append("circle")
+    .attr("r", d => getNodeRadius(d.frequency))
+    .attr("fill", d => getNodeColor(
+      d.automation_potential
+    ))
+    .attr("fill-opacity", 0.85)
+    .on("mouseover", (event, d) => {
+      const apps = (d.app_sequence || [])
+        .map(a => `<span class="app-pill">${a}</span>`)
+        .join("")
+      
+      tooltip.innerHTML = `
+        <span class="vault-badge 
+              ${getVaultBadgeClass(d.vault_level)}">
+          ${d.vault_level || "personal"} vault
+        </span>
+        <h3>${d.label}</h3>
+        <div class="tooltip-row">
+          <span>Frequency</span>
+          <span>${(d.frequency||0).toFixed(1)}x/week</span>
+        </div>
+        <div class="tooltip-row">
+          <span>Automation</span>
+          <span>${Math.round(
+            (d.automation_potential||0)*100
+          )}%</span>
+        </div>
+        <div class="app-pills">${apps}</div>
+      `
+      tooltip.classList.add("visible")
+      tooltip.style.left = (event.pageX + 16) + "px"
+      tooltip.style.top = (event.pageY - 16) + "px"
+    })
+    .on("mousemove", (event) => {
+      tooltip.style.left = (event.pageX + 16) + "px"
+      tooltip.style.top = (event.pageY - 16) + "px"
+    })
+    .on("mouseout", () => {
+      tooltip.classList.remove("visible")
+    })
+    .on("click", (event, d) => {
+      event.stopPropagation()
+      showDetailPanel(d)
+    })
+
+  node.append("text")
+    .text(d => d.label.length > 14 
+      ? d.label.substring(0, 14) + "…" 
+      : d.label
+    )
+    .attr("dy", d => getNodeRadius(d.frequency) + 14)
+    .style("font-size", "11px")
+
+  simulation.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y)
+
+    node.attr("transform", d => 
+      `translate(${d.x},${d.y})`
+    )
+  })
+
+  // Close panel on svg click
+  svg.on("click", () => {
+    detailPanel.classList.remove("open")
+  })
+
+  document.getElementById("close-panel")
+    .onclick = () => {
+      detailPanel.classList.remove("open")
+    }
+
+  function showDetailPanel(d) {
+    const apps = (d.app_sequence || [])
+      .map(a => `<span class="app-pill">${a}</span>`)
+      .join("")
+
+    const contributeBtn = 
+      d.vault_level === "personal"
+        ? `<button class="contribute-btn" 
+             onclick="contributeWorkflow('${d.id}')">
+             Contribute to Role Vault
+           </button>`
+        : ""
+
+    detailContent.innerHTML = `
+      <span class="vault-badge 
+            ${getVaultBadgeClass(d.vault_level)}">
+        ${d.vault_level || "personal"} vault
+      </span>
+      <h2>${d.label}</h2>
+      ${d.description 
+        ? `<p style="color:#64748b;font-size:13px;
+                     margin-bottom:16px">
+            ${d.description}
+           </p>` 
+        : ""}
+      <div class="detail-metric">
+        <div class="detail-metric-label">Frequency</div>
+        <div class="detail-metric-value">
+          ${(d.frequency||0).toFixed(1)}x/week
+        </div>
+      </div>
+      <div class="detail-metric">
+        <div class="detail-metric-label">
+          Automation Potential
+        </div>
+        <div class="detail-metric-value" 
+             style="color:${getNodeColor(
+               d.automation_potential
+             )}">
+          ${Math.round(
+            (d.automation_potential||0)*100
+          )}%
+        </div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="detail-metric-label" 
+             style="margin-bottom:8px">
+          App Sequence
+        </div>
+        <div class="app-pills">${apps}</div>
+      </div>
+      ${contributeBtn}
+    `
+    detailPanel.classList.add("open")
+  }
+
+  function dragstarted(event, d) {
+    if (!event.active) 
+      simulation.alphaTarget(0.3).restart()
+    d.fx = d.x
+    d.fy = d.y
+  }
+
+  function dragged(event, d) {
+    d.fx = event.x
+    d.fy = event.y
+  }
+
+  function dragended(event, d) {
+    if (!event.active) 
+      simulation.alphaTarget(0)
+    d.fx = null
+    d.fy = null
+  }
+}
+
+async function contributeWorkflow(recordId) {
+  try {
+    await fetch(
+      `${API}/v1/vaults/contributions/request`,
+      {
+        method: "POST",
+        headers: {
+          ...HEADERS,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ record_id: recordId })
+      }
+    )
+    alert("Contribution request sent. "
+        + "Check your Vaults tab to approve.")
+  } catch(e) {
+    alert("Could not send request. Try again.")
+  }
+}
+
+// Handle window resize
+window.addEventListener("resize", () => {
+  location.reload()
+})
+
+// Load and render
+loadGraphData().then(renderGraph)
+</script>
+</body>
+</html>

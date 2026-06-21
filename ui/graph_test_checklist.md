@@ -1,0 +1,13 @@
+- [ ] Graph loads without errors when server running
+- [ ] Empty state shows when no workflows in vaults
+- [ ] Nodes appear when workflows exist in Personal Vault
+- [ ] Node size reflects frequency_per_week
+- [ ] Node color reflects automation_potential
+- [ ] Hover shows tooltip with correct data
+- [ ] Click opens detail panel
+- [ ] Drag moves nodes correctly
+- [ ] Vault badge shows correct vault level
+- [ ] Contribute button appears for Personal Vault nodes
+- [ ] Back button returns to main UI
+- [ ] Zoom in and out works
+- [ ] Stats bar shows correct node and edge counts

@@ -1,0 +1,12 @@
+{
+  "id": "invoice_processing_v1",
+  "name": "Invoice Processing Workflow",
+  "industry": "retail",
+  "trigger": "file_created with ext .pdf in Documents",
+  "steps": [
+      "Wait for human approval",
+      "Scan PDF for amounts",
+      "Create entry in Tally"
+  ],
+  "estimated_time_saved_per_week_hours": 3.5
+}

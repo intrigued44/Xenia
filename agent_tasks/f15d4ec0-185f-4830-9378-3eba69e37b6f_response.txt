@@ -1,0 +1,10 @@
+I can see your Chrome browser behind the Nous window! 
+
+You are currently looking at a Google Sheets document titled "Rasimo_KPI_Appraisal_Dashboard". 
+You are on the "KPI Setup" tab, and the data on the screen shows a list of employees (e.g., E001, E002) along with their KPI Categories and weightings:
+- Quantitative (60%)
+- Behavioral (20%)
+- Compliance (10%)
+- L&D (10%)
+
+There is also a sidebar open on the right side with conditional tracking labels like "On Track", "Needs", "Critical", and "Risk".
