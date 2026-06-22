@@ -1920,15 +1920,8 @@ async function buildPlan() {
  }
 
  if (!steps) {
- await new Promise(r=>setTimeout(r, 800));
- steps = [
- {tool:'sap.query', desc:'Pull all relevant records matching the goal criteria', tier:'auto'},
- {tool:'xenia.analyze', desc:'Cross-reference against enterprise knowledge graph for anomalies', tier:'auto'},
- {tool:'xenia.generate_report', desc:'Compile structured findings into executive summary', tier:'auto'},
- {tool:'slack.message', desc:'Post summary to relevant team channel for visibility', tier:'confirm'},
- {tool:'sap.update', desc:'Write corrections or status updates back to SAP', tier:'review'}
- ];
- currentActivePlanId = 'mock_plan_' + Date.now();
+    container.innerHTML = '<div style="color:var(--accent-red)">Plan generation failed or returned no steps.</div>';
+    return;
  }
 
  let html = `<div class="card"><h3 style="margin-bottom:12px">Generated Plan: "${goal}"</h3>`;
@@ -1941,18 +1934,12 @@ async function buildPlan() {
 
 window.executePlan = async (count) => {
  showToast('Executing plan...','info');
- if (currentActivePlanId && !currentActivePlanId.startsWith('mock_')) {
+ if (currentActivePlanId) {
  try {
  await fetchAPI(`/plans/${currentActivePlanId}/execute`, { method: 'POST' });
  } catch(e) {
  console.warn("Backend plan execution call failed", e);
  }
- }
- for (let i=0;i<count;i++) {
- setTimeout(() => {
- const el = document.getElementById('sc-'+i);
- if (el) { el.style.borderColor='var(--accent-green)'; el.style.background='var(--accent-green)'; el.innerHTML='&#10003;'; el.style.color='#000'; el.style.fontSize='10px'; }
- }, (i+1)*700);
  }
 };
 
@@ -2033,36 +2020,7 @@ def escalate_overdue(threshold_days=3):
  sap.update(inv.id, status="escalated", escalated_by="xenia")`
 ];
 
-const autoDetails = [
- `<div style="margin-bottom:12px"><div style="font-weight:600;font-size:15px;margin-bottom:4px">AP Invoice Parser</div><span class="pill green">Live</span></div>
- <div class="kv"><span class="kv-label">Last run</span><span style="font-size:12px">2 minutes ago</span></div>
- <div class="kv"><span class="kv-label">Total runs today</span><span style="font-size:12px">47</span></div>
- <div class="kv"><span class="kv-label">Success rate</span><span style="font-size:12px;color:var(--accent-green)">100%</span></div>
- <div class="kv"><span class="kv-label">Time saved this week</span><span style="font-size:12px;color:var(--accent-green)">7.2 hrs</span></div>
- <div class="kv"><span class="kv-label">Est. annual saving</span><span style="font-size:12px;color:var(--accent-green)">$18,400</span></div>
- <div style="margin-top:16px;display:flex;gap:8px">
- <button class="btn btn-danger btn-sm" onclick="closeModal('auto-detail-modal');showToast('AP Invoice Parser paused','error')">Pause</button>
- <button class="btn btn-ghost btn-sm" onclick="closeModal('auto-detail-modal');showToast('Viewing run logs...','info')">View Logs</button>
- </div>`,
- `<div style="margin-bottom:12px"><div style="font-weight:600;font-size:15px;margin-bottom:4px">Expense Report Auto-Fill</div><span class="pill green">Live</span></div>
- <div class="kv"><span class="kv-label">Last run</span><span style="font-size:12px">1 hour ago</span></div>
- <div class="kv"><span class="kv-label">Receipts processed today</span><span style="font-size:12px">12</span></div>
- <div class="kv"><span class="kv-label">Success rate</span><span style="font-size:12px;color:var(--accent-green)">97.3%</span></div>
- <div class="kv"><span class="kv-label">Time saved this week</span><span style="font-size:12px;color:var(--accent-green)">3.5 hrs</span></div>
- <div style="margin-top:16px;display:flex;gap:8px">
- <button class="btn btn-danger btn-sm" onclick="closeModal('auto-detail-modal');showToast('Expense Auto-Fill paused','error')">Pause</button>
- <button class="btn btn-ghost btn-sm" onclick="closeModal('auto-detail-modal');showToast('Viewing run logs...','info')">View Logs</button>
- </div>`,
- `<div style="margin-bottom:12px"><div style="font-weight:600;font-size:15px;margin-bottom:4px">Vendor Master Sync</div><span class="pill green">Live</span></div>
- <div class="kv"><span class="kv-label">Last run</span><span style="font-size:12px">09:01 today</span></div>
- <div class="kv"><span class="kv-label">Records synced</span><span style="font-size:12px">1,204</span></div>
- <div class="kv"><span class="kv-label">Conflicts resolved</span><span style="font-size:12px">3</span></div>
- <div class="kv"><span class="kv-label">Next run</span><span style="font-size:12px">Tomorrow 09:00</span></div>
- <div style="margin-top:16px;display:flex;gap:8px">
- <button class="btn btn-ghost btn-sm" onclick="closeModal('auto-detail-modal');showToast('Manual sync triggered','info')">Run Now</button>
- <button class="btn btn-danger btn-sm" onclick="closeModal('auto-detail-modal');showToast('Vendor Master Sync disabled','error')">Disable</button>
- </div>`
-];
+const autoDetails = [];
 
 window.rejectAuto = (id) => {
  const el = document.getElementById(id);
@@ -2183,28 +2141,7 @@ window.confirmDeleteAll = () => {
 // ==============================
 // DATA INSPECTOR
 // ==============================
-let dataEvents = [
- {id:'m1', table:'mock', type:'screen', app:'SAP GUI', content:'T-code: MIRO — Invoice posting screen, Vendor: Acme Corp, Amount: $14,200', brain:true, time:'14:23:11', risk:'low'},
- {id:'m2', table:'mock', type:'clipboard', app:'Chrome', content:'Copied: "INV-2341 — Acme Corp — $14,200.00 — 2025-06-10"', brain:false, time:'14:22:58', risk:'medium'},
- {id:'m3', table:'mock', type:'file', app:'Excel', content:'Opened: Q3_Variance_Report_June2025.xlsx (Finance/Reports/)', brain:true, time:'14:20:33', risk:'low'},
- {id:'m4', table:'mock', type:'screen', app:'Outlook', content:'Composing email to finance-team@acme.com — Subject: Weekly Report', brain:true, time:'14:18:02', risk:'low'},
- {id:'m5', table:'mock', type:'screen', app:'SAP GUI', content:'T-code: ME21N — Creating PO for TechParts, Amount: $8,900', brain:true, time:'14:15:44', risk:'low'},
- {id:'m6', table:'mock', type:'clipboard', app:'SAP GUI', content:'Copied: "PO-10045892" from ME21N field', brain:false, time:'14:15:12', risk:'low'},
- {id:'m7', table:'mock', type:'file', app:'Chrome', content:'Downloaded: Acme_Corp_Invoice_June2025.pdf', brain:false, time:'14:12:08', risk:'medium'},
- {id:'m8', table:'mock', type:'network', app:'SAP GUI', content:'API call: sap.getVendorData(vendor_id="ACME001") — 204 records returned', brain:true, time:'14:10:55', risk:'low'},
- {id:'m9', table:'mock', type:'screen', app:'Slack', content:'Reading #ap-team — Message from Rohan: "3 invoices still pending CFO approval"', brain:false, time:'14:08:33', risk:'low'},
- {id:'m10', table:'mock', type:'file', app:'Excel', content:'Saved: Monthly_Reconciliation_May2025.xlsx', brain:true, time:'13:55:21', risk:'low'},
- {id:'m11', table:'mock', type:'screen', app:'Concur', content:'Expense report #EXP-9941 — Category: Travel — Amount: $342.50', brain:true, time:'13:44:17', risk:'low'},
- {id:'m12', table:'mock', type:'clipboard', app:'Outlook', content:'Copied: "sarah.chen@acme.com"', brain:false, time:'13:40:05', risk:'low'},
- {id:'m13', table:'mock', type:'network', app:'Chrome', content:'API call: salesforce.getOpportunity(opp_id="OPP-1847") — Stage: Negotiation', brain:true, time:'13:35:44', risk:'low'},
- {id:'m14', table:'mock', type:'screen', app:'SAP GUI', content:'T-code: F110 — Payment run initiated — 47 vendors — Total: $2.1M', brain:true, time:'13:20:00', risk:'low'},
- {id:'m15', table:'mock', type:'file', app:'SharePoint', content:'Accessed: Finance/Policies/AP_Approval_Policy_v3.docx', brain:true, time:'13:15:33', risk:'low'},
- {id:'m16', table:'mock', type:'clipboard', app:'Chrome', content:'Copied: "Global Supply IBAN: GB29 NWBK 6016 1331 9268 19"', brain:false, time:'13:10:02', risk:'high'},
- {id:'m17', table:'mock', type:'screen', app:'Workday', content:'Viewing Employee: David Park — IT Procurement — Start Date: 2023-01-15', brain:false, time:'13:05:44', risk:'low'},
- {id:'m18', table:'mock', type:'network', app:'Jira', content:'API call: jira.getIssues(project="FIN", status="Open") — 23 issues returned', brain:true, time:'12:58:11', risk:'low'},
- {id:'m19', table:'mock', type:'screen', app:'SAP GUI', content:'T-code: ME23N — Viewing PO-10045887 — Status: Delivered — Amount: $22,100', brain:true, time:'12:45:33', risk:'low'},
- {id:'m20', table:'mock', type:'file', app:'Outlook', content:'Attachment saved: Vendor_Contract_GlobalSupply_2025.pdf', brain:false, time:'12:30:17', risk:'medium'},
-];
+let dataEvents = [];
 
 const typeColors = { screen:'#5e6ad2', clipboard:'#8b5cf6', file:'#10b981', network:'#f59e0b' };
 let dataFilter = 'all';
@@ -2218,10 +2155,8 @@ async function renderDataEvents() {
  if (!eventsLoadedFromBackend) {
  try {
  const backendEvents = await fetchAPI('/mydata/events');
- if (backendEvents && Array.isArray(backendEvents) && backendEvents.length > 0) {
- const realIds = new Set(backendEvents.map(e => `${e.table}_${e.id}`));
- const filteredMocks = dataEvents.filter(e => e.table === 'mock' || !realIds.has(`${e.table}_${e.id}`));
- dataEvents = [...backendEvents, ...filteredMocks];
+ if (backendEvents && Array.isArray(backendEvents)) {
+ dataEvents = backendEvents;
  eventsLoadedFromBackend = true;
  }
  } catch(e) {
@@ -2266,7 +2201,7 @@ window.toggleBrainOnly = () => {
 };
 
 window.deleteDataEvent = async (id, table, index) => {
- if (table && table !== 'mock') {
+ if (table) {
  try {
  await fetchAPI('/mydata/item', {
  method: 'DELETE',
@@ -2294,54 +2229,8 @@ let graphNodes = [], graphEdges = [], graphScale = 1, graphOffsetX = 0, graphOff
 let selectedNode = null, draggingNode = null, isPanning = false, lastMouse = null, animFrame = null;
 let activeFilter = 'all';
 
-const graphData = {
- nodes: [
- {id:'sarah',label:'Sarah Chen',type:'people',desc:'CFO. Owns Revenue Recognition. Top brain contributor.',connections:['p2p','salesforce','revenue']},
- {id:'rohan',label:'Rohan Mehta',type:'people',desc:'Finance Head. 12 workflows mapped. Created AP Invoice Parser.',connections:['p2p','sap','jira']},
- {id:'ananya',label:'Ananya Iyer',type:'people',desc:'AP Lead. Owns Vendor Onboarding process.',connections:['vendor-onb','sap','inv-appr']},
- {id:'david',label:'David Park',type:'people',desc:'IT Procurement. SOP partially documented.',connections:['it-proc','jira']},
- {id:'meera',label:'Meera Joshi',type:'people',desc:'HR Ops. CRITICAL: sole owner of offboarding — no SOP.',connections:['offboarding']},
- {id:'pranav',label:'Pranav (You)',type:'people',desc:'Business Analyst. 14 workflows mapped. Score: 88/100.',connections:['p2p','weekly-rep','vendor-recon']},
- {id:'p2p',label:'Procure to Pay',type:'process',desc:'45 cycles/week. 82% conformance. Key automation target.',connections:['sap','outlook','inv-appr','po-create']},
- {id:'vendor-onb',label:'Vendor Onboarding',type:'process',desc:'Partial SOP. 3 vendors with missing PO fields.',connections:['sap','outlook']},
- {id:'offboarding',label:'Employee Offboarding',type:'process',desc:'No SOP. Critical knowledge gap. Single owner.',connections:['workday']},
- {id:'it-proc',label:'IT Procurement',type:'process',desc:'Partial SOP. License renewals at risk.',connections:['jira','outlook']},
- {id:'weekly-rep',label:'Weekly Reporting',type:'process',desc:'95% automatable. 60 min manual effort.',connections:['excel','outlook','sap']},
- {id:'vendor-recon',label:'Vendor Reconciliation',type:'process',desc:'3x/week. 35 min avg. 78% automatable.',connections:['sap','excel']},
- {id:'revenue',label:'Revenue Recognition',type:'process',desc:'Owned by Sarah Chen. Fully documented.',connections:['salesforce','sap']},
- {id:'inv-appr',label:'Invoice Approval',type:'process',desc:'Critical bottleneck. 3.2 day avg wait. $89k impact.',connections:['sap','slack']},
- {id:'po-create',label:'PO Creation',type:'process',desc:'1.1 day avg. 18% late submissions.',connections:['sap']},
- {id:'sap',label:'SAP S/4HANA',type:'app',desc:'Primary ERP. 1,204 events captured. 94% alignment.',connections:[]},
- {id:'outlook',label:'Outlook',type:'app',desc:'310 minutes/week. Email workflows.',connections:[]},
- {id:'slack',label:'Slack',type:'app',desc:'180 minutes/week. Escalation channel.',connections:[]},
- {id:'excel',label:'Excel / Power BI',type:'app',desc:'90 min/week. Variance reporting.',connections:[]},
- {id:'jira',label:'Jira Cloud',type:'app',desc:'89 tickets tracked. Connected.',connections:[]},
- {id:'salesforce',label:'Salesforce CRM',type:'app',desc:'342 opportunities tracked.',connections:[]},
- {id:'workday',label:'Workday',type:'app',desc:'HR & Payroll. 12 onboarding sessions.',connections:[]},
- {id:'po-doc',label:'PO-10045892',type:'doc',desc:'Purchase Order — TechParts — $8,900 — 10 Jun 2025',connections:['sap','rohan']},
- {id:'inv-doc',label:'INV-2341',type:'doc',desc:'Invoice — Acme Corp — $14,200 — Missing PO',connections:['sap','ananya']},
- {id:'rep-doc',label:'Q3 Variance Report',type:'doc',desc:'Finance report — Last updated 3 days ago',connections:['excel','sarah']},
- ],
- edges: [
- ['sarah','p2p'],['sarah','revenue'],['sarah','salesforce'],
- ['rohan','p2p'],['rohan','sap'],['rohan','jira'],
- ['ananya','vendor-onb'],['ananya','sap'],['ananya','inv-appr'],
- ['david','it-proc'],['david','jira'],
- ['meera','offboarding'],
- ['pranav','p2p'],['pranav','weekly-rep'],['pranav','vendor-recon'],
- ['p2p','sap'],['p2p','outlook'],['p2p','inv-appr'],['p2p','po-create'],
- ['vendor-onb','sap'],['vendor-onb','outlook'],
- ['offboarding','workday'],
- ['it-proc','jira'],['it-proc','outlook'],
- ['weekly-rep','excel'],['weekly-rep','outlook'],['weekly-rep','sap'],
- ['vendor-recon','sap'],['vendor-recon','excel'],
- ['revenue','salesforce'],['revenue','sap'],
- ['inv-appr','sap'],['inv-appr','slack'],
- ['po-create','sap'],
- ['po-doc','sap'],['po-doc','rohan'],
- ['inv-doc','sap'],['inv-doc','ananya'],
- ['rep-doc','excel'],['rep-doc','sarah'],
- ]
+let graphData = {
+ nodes: [], edges: []
 };
 
 const nodeColors = { people:'#5e6ad2', process:'#8b5cf6', app:'#10b981', doc:'#f59e0b' };

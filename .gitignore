@@ -29,3 +29,5 @@ platform-architecture.zip
 platform-architecture-final.zip
 
 .env
+.venv
+.venv/

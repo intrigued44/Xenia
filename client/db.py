@@ -343,6 +343,66 @@ def init_db():
         VALUES ('tenant-local', 'Xenia Local', 'sk-test-key-123', 'enterprise')
     ''')
 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS config (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS roi_logs (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT,
+            time_saved_minutes REAL,
+            cost_saved_cents INTEGER,
+            token_cost_cents INTEGER,
+            timestamp INTEGER
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS llm_profiles (
+            name TEXT PRIMARY KEY,
+            latency_ms REAL,
+            error_rate REAL,
+            token_burn INTEGER
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS workflow_runs (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT,
+            workflow_name TEXT,
+            status TEXT,
+            logs TEXT,
+            start_time INTEGER,
+            end_time INTEGER
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS credentials (
+            id TEXT PRIMARY KEY,
+            service_name TEXT,
+            encrypted_token TEXT,
+            tenant_id TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS skill_script_versions (
+            id TEXT PRIMARY KEY,
+            skill_name TEXT,
+            version INTEGER,
+            diff TEXT,
+            code_content TEXT,
+            created_at INTEGER,
+            tenant_id TEXT
+        )
+    ''')
+
     conn.commit()
 
     conn.close()
