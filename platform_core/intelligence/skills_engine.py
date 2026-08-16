@@ -139,50 +139,52 @@ def self_heal_skill(name: str, error_message: str, tenant_id: str = "local") -> 
         print(f"[Skills Engine] Failed to self-heal skill: {e}")
         return original_code
 
-def run_and_heal_skill(name: str, code_content: str, tenant_id: str = "local") -> dict:
+def run_and_heal_skill(name: str, code_content: str, tenant_id: str = "local", allowed_capabilities: list = None, user_role: str = "employee") -> dict:
     """
-    Executes the Python code using exec(), catches any traceback/exception,
-    logs the run to log_skill_run(), and triggers self_heal_skill() if it fails.
+    Executes Python code inside RestrictedExecutor sandbox boundary,
+    captures security violations and tracebacks, logs skill telemetry,
+    and triggers self_heal_skill() if execution fails.
     """
-    import sys
-    import io
-    import traceback
-    
-    # Capture stdout/stderr
-    stdout = io.StringIO()
-    stderr = io.StringIO()
-    
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-    sys.stdout = stdout
-    sys.stderr = stderr
-    
-    success = True
-    error_msg = None
-    
-    try:
-        # Create a local environment
-        local_env = {"os": os, "time": time, "sys": sys, "__name__": "__main__"}
-        exec(code_content, local_env, local_env)
-    except Exception as e:
-        success = False
-        tb = traceback.format_exc()
-        error_msg = f"{str(e)}\nTraceback:\n{tb}"
-    finally:
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
-        
-    output_str = stdout.getvalue()
-    err_str = stderr.getvalue()
-    if err_str:
-        output_str += f"\nStderr:\n{err_str}"
-        
+    from platform_core.intelligence.restricted_executor import RestrictedExecutor, Capability
+
+    executor = RestrictedExecutor(timeout_seconds=5.0)
+    caps = allowed_capabilities or [
+        Capability.FILESYSTEM_READ.value,
+        Capability.FILESYSTEM_WRITE.value,
+        Capability.VAULT_GET_SECRET.value,
+        Capability.CLIPBOARD_READ.value,
+        Capability.CLIPBOARD_WRITE.value
+    ]
+
+    res = executor.execute_skill(
+        skill_name=name,
+        code_content=code_content,
+        allowed_capabilities=caps,
+        tenant_id=tenant_id,
+        user_role=user_role
+    )
+
+    success = res["success"]
+    error_msg = res.get("error")
+    output_str = res.get("output", "")
+
     log_skill_run(name, success, error_msg or output_str, tenant_id)
-    
+
     if not success:
         print(f"[Skills Engine] Skill '{name}' failed. Triggering self-healing...")
         healed_code = self_heal_skill(name, error_msg or output_str, tenant_id)
-        return {"success": False, "error": error_msg, "output": output_str, "healed_code": healed_code}
-        
-    return {"success": True, "output": output_str}
+        return {
+            "success": False,
+            "error": error_msg,
+            "output": output_str,
+            "healed_code": healed_code,
+            "security_violations": res.get("security_violations", [])
+        }
+
+    return {
+        "success": True,
+        "output": output_str,
+        "capabilities_used": res.get("capabilities_used", []),
+        "duration_ms": res.get("duration_ms", 0)
+    }
 
