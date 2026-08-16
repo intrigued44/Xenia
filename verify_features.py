@@ -8,7 +8,9 @@ features = [
     'removeNode', 'clearFlowCanvas', 'addTriggerNode', 'addActionNode'
 ]
 
-with open(r'c:\Users\pranav\Downloads\nous-windows-installer-src\ui\index.html', encoding='utf-8') as f:
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(BASE_DIR, 'ui', 'index.html'), encoding='utf-8') as f:
     html = f.read()
 
 print(f"Total chars: {len(html):,}")
