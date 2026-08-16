@@ -328,7 +328,7 @@ def init_db():
     except Exception:
         pass
 
-    # Create tenants table and seed default API key so the app works out-of-box
+    # Create tenants table and seed API key safely without hardcoded production defaults
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tenants (
             id TEXT PRIMARY KEY,
@@ -338,15 +338,38 @@ def init_db():
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    env = os.environ.get("ENV", "development").lower()
+    test_mode = os.environ.get("XENIA_TEST_MODE", "1")
+    custom_api_key = os.environ.get("XENIA_API_KEY") or os.environ.get("DEV_API_KEY")
+
+    if custom_api_key:
+        initial_key = custom_api_key
+    elif env == "development" or test_mode == "1":
+        initial_key = "sk-test-key-123"
+    else:
+        import secrets
+        initial_key = f"sk-xenia-{secrets.token_hex(16)}"
+
     cursor.execute('''
         INSERT OR IGNORE INTO tenants (id, name, api_key, plan)
-        VALUES ('tenant-local', 'Xenia Local', 'sk-test-key-123', 'enterprise')
-    ''')
+        VALUES ('tenant-local', 'Xenia Local', ?, 'enterprise')
+    ''', (initial_key,))
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS config (
             key TEXT PRIMARY KEY,
             value TEXT
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS execution_telemetry (
+            id TEXT PRIMARY KEY,
+            tenant_id TEXT NOT NULL,
+            skill_name TEXT NOT NULL,
+            success INTEGER NOT NULL,
+            output TEXT,
+            executed_at INTEGER NOT NULL
         )
     ''')
 

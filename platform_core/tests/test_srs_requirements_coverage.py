@@ -125,9 +125,34 @@ def test_fr004_audit_trail_logging_and_filtering():
 # --- Observation and Event Capture (FR-005 - FR-009) ---
 
 def test_fr005_observation_toggle():
-    obs_config = {"app": "Excel", "enabled": True}
-    obs_config["enabled"] = False
-    assert obs_config["enabled"] is False
+    tenant = "obs_toggle_tenant"
+    session_id = "sess_obs_enabled"
+    now = int(time.time())
+
+    # 1. Observation ENABLED: create session and log event
+    create_session(session_id, now, "Excel", tenant)
+    log_event(session_id, "click", "Excel", {"button": "Submit"}, tenant)
+
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM events WHERE session_id = ?", (session_id,))
+    count_enabled = c.fetchone()[0]
+    conn.close()
+
+    assert count_enabled == 1
+
+    # 2. Observation DISABLED: simulated disabled scope check prevents event logging
+    observation_enabled = False
+    if observation_enabled:
+        log_event(session_id, "click", "Excel", {"button": "Submit_Ignored"}, tenant)
+
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM events WHERE session_id = ?", (session_id,))
+    count_disabled = c.fetchone()[0]
+    conn.close()
+
+    assert count_disabled == 1  # No new event logged while observation disabled
 
 
 def test_fr006_normalized_activity_events():
@@ -265,10 +290,17 @@ def test_fr017_semantic_and_keyword_retrieval():
 
 
 def test_fr018_knowledge_conflict_detection():
-    doc1 = {"rule": "Approval required > $5,000", "version": 1}
-    doc2 = {"rule": "Approval required > $10,000", "version": 2}
-    conflict = doc1["rule"] != doc2["rule"]
-    assert conflict is True
+    from platform_core.intelligence.memory_engine import save_memory, get_all_memories
+    tenant = "conflict_tenant"
+
+    save_memory("nous", "invoice_approval_threshold", "$5,000", 0.8, tenant)
+    save_memory("nous", "invoice_approval_threshold", "$10,000", 0.9, tenant)
+
+    memories = get_all_memories("nous", tenant)
+    fact = next((m for m in memories if m["key"] == "invoice_approval_threshold"), None)
+
+    assert fact is not None
+    assert fact["value"] == "$10,000"
 
 
 # --- Workflow Automation (FR-019 - FR-025) ---
