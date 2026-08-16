@@ -189,13 +189,17 @@ def get_llm_provider(provider_type: Optional[str] = None) -> BaseLLMProvider:
 def call_llm(prompt: str, max_tokens: int = 1000, temperature: float = 0.0, provider_type: Optional[str] = None) -> str:
     """
     Main entry point for LLM generation across Xenia.
-    Includes fallback to MockLLMProvider if external API calls fail.
+    In production mode (ENV=production), provider exceptions fail safely with RuntimeError.
+    In test/dev mode, provider failures fall back to MockLLMProvider.
     """
+    env_name = os.environ.get("ENV", "development").lower()
     try:
         provider = get_llm_provider(provider_type)
         text = provider.generate(prompt, max_tokens=max_tokens, temperature=temperature)
     except Exception as e:
-        # Graceful fallback to mock provider on network/auth failure
+        if env_name == "production":
+            raise RuntimeError(f"Production LLM Provider Error: {e}")
+        # Graceful fallback to mock provider on network/auth failure in dev/test mode
         provider = MockLLMProvider()
         text = provider.generate(prompt, max_tokens=max_tokens, temperature=temperature)
 

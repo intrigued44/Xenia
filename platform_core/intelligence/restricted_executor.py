@@ -9,8 +9,9 @@ Architecture:
 Features:
   - Explicit capability enforcement (filesystem.read, filesystem.write, clipboard, vault.get_secret, browser)
   - Subprocess worker isolation with configurable execution timeout
-  - Restricted import hook blocking dangerous modules (os, sys, subprocess, socket, ctypes, shutil)
-  - Path traversal protection restricting file I/O to approved workspace directories
+  - Restricted import hook blocking dangerous modules (os, sys, subprocess, socket, ctypes)
+  - Symlink resolution & realpath boundary validation restricting file I/O to approved workspace directories
+  - Database file protection preventing direct access to .db / sqlite files
   - Environment variable stripping (no host API keys or secrets exposed to script)
   - Explicit process termination on timeout or cancellation
   - Complete security violation logging and telemetry
@@ -23,6 +24,7 @@ import json
 import time
 import uuid
 import re
+import ast
 import multiprocessing
 import traceback
 from enum import Enum
@@ -52,10 +54,6 @@ FORBIDDEN_MODULES = {
     "signal", "pty", "tty", "posix", "winreg"
 }
 
-ALLOWED_WORKSPACE_DIRS = {
-    "workspace", "process_docs", "test_data", "automations", "temp"
-}
-
 
 class SecurityViolationError(PermissionError):
     pass
@@ -77,7 +75,7 @@ class CapabilityContext:
 
     def __init__(self, policy: CapabilityPolicy, workspace_root: str):
         self.policy = policy
-        self.workspace_root = os.path.abspath(workspace_root)
+        self.workspace_root = os.path.realpath(workspace_root)
         self.capabilities_used = set()
         self.security_violations = []
 
@@ -85,30 +83,36 @@ class CapabilityContext:
         self.policy.check_capability(required_capability)
         self.capabilities_used.add(required_capability)
 
+        # Resolve relative and absolute paths to canonical realpath (resolving symlinks)
         abs_path = os.path.abspath(os.path.join(self.workspace_root, path))
+        real_path = os.path.realpath(abs_path)
 
-        # Check path traversal: abs_path must start with workspace_root or be in ALLOWED_WORKSPACE_DIRS
-        in_root = abs_path.startswith(self.workspace_root)
-        in_allowed = any(d in abs_path for d in ALLOWED_WORKSPACE_DIRS)
-
-        if not (in_root or in_allowed):
-            violation = f"Path traversal blocked: '{path}' resolves outside allowed workspace root '{self.workspace_root}'"
+        # Block direct access to database files
+        filename = os.path.basename(real_path).lower()
+        if filename.endswith(".db") or filename.endswith(".sqlite") or "mvp_data" in filename:
+            violation = f"Access Denied: Direct file access to database file '{filename}' is restricted."
             self.security_violations.append(violation)
             raise SecurityViolationError(violation)
 
-        return abs_path
+        # Strict workspace boundary check using realpath
+        if not (real_path == self.workspace_root or real_path.startswith(os.path.join(self.workspace_root, ""))):
+            violation = f"Path traversal blocked: '{path}' resolves to realpath '{real_path}' outside workspace root '{self.workspace_root}'"
+            self.security_violations.append(violation)
+            raise SecurityViolationError(violation)
+
+        return real_path
 
     def read_file(self, path: str) -> str:
-        abs_path = self._resolve_and_validate_path(path, Capability.FILESYSTEM_READ.value)
-        if not os.path.exists(abs_path):
+        real_path = self._resolve_and_validate_path(path, Capability.FILESYSTEM_READ.value)
+        if not os.path.exists(real_path):
             raise FileNotFoundError(f"File not found: {path}")
-        with open(abs_path, "r", encoding="utf-8", errors="ignore") as f:
+        with open(real_path, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
 
     def write_file(self, path: str, content: str) -> str:
-        abs_path = self._resolve_and_validate_path(path, Capability.FILESYSTEM_WRITE.value)
-        os.makedirs(os.path.dirname(abs_path), exist_ok=True)
-        with open(abs_path, "w", encoding="utf-8") as f:
+        real_path = self._resolve_and_validate_path(path, Capability.FILESYSTEM_WRITE.value)
+        os.makedirs(os.path.dirname(real_path), exist_ok=True)
+        with open(real_path, "w", encoding="utf-8") as f:
             f.write(content)
         return f"Successfully wrote {len(content)} bytes to {path}"
 
@@ -139,9 +143,24 @@ class CapabilityContext:
         return "Clipboard updated."
 
 
+def _validate_ast_safety(code_content: str):
+    """
+    AST syntax validation blocking dangerous introspection attributes (__subclasses__, __globals__, __base__).
+    """
+    try:
+        tree = ast.parse(code_content)
+    except Exception:
+        return  # Syntax errors handled at execution time
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Attribute):
+            if node.attr in ("__subclasses__", "__globals__", "__base__", "__bases__", "__mro__", "__code__"):
+                raise SecurityViolationError(f"Forbidden introspection attribute: '{node.attr}' is restricted.")
+
+
 def _subprocess_worker(code_content: str, allowed_capabilities: List[str], tenant_id: str, user_role: str, workspace_root: str, result_queue: multiprocessing.Queue):
     """
-    Subprocess worker executing code in a isolated environment.
+    Subprocess worker executing code in an isolated environment.
     """
     stdout = io.StringIO()
     stderr = io.StringIO()
@@ -172,6 +191,7 @@ def _subprocess_worker(code_content: str, allowed_capabilities: List[str], tenan
         "sum": sum, "tuple": tuple, "type": type, "zip": zip,
         "Exception": Exception, "ValueError": ValueError, "TypeError": TypeError,
         "KeyError": KeyError, "AttributeError": AttributeError,
+        "FileNotFoundError": FileNotFoundError,
         "SecurityViolationError": SecurityViolationError,
         "__import__": restricted_import
     }
@@ -182,13 +202,17 @@ def _subprocess_worker(code_content: str, allowed_capabilities: List[str], tenan
             class FileWriter:
                 def __init__(self, path): self.path = path; self.buf = io.StringIO()
                 def write(self, s): self.buf.write(s)
+                def flush(self): pass
+                def close(self): cap_ctx.write_file(self.path, self.buf.getvalue())
                 def __enter__(self): return self
-                def __exit__(self, exc_type, exc_val, exc_tb): cap_ctx.write_file(self.path, self.buf.getvalue())
+                def __exit__(self, exc_type, exc_val, exc_tb): self.close()
             return FileWriter(file)
         else:
             class FileReader:
-                def __init__(self, path): self.path = path
-                def read(self): return cap_ctx.read_file(self.path)
+                def __init__(self, path): self.path = path; self.content = cap_ctx.read_file(self.path)
+                def read(self): return self.content
+                def readlines(self): return self.content.splitlines(True)
+                def close(self): pass
                 def __enter__(self): return self
                 def __exit__(self, exc_type, exc_val, exc_tb): pass
             return FileReader(file)
@@ -213,6 +237,7 @@ def _subprocess_worker(code_content: str, allowed_capabilities: List[str], tenan
     error_msg = None
 
     try:
+        _validate_ast_safety(code_content)
         exec(code_content, safe_globals, safe_globals)
     except SecurityViolationError as sve:
         success = False
@@ -242,7 +267,7 @@ class RestrictedExecutor:
 
     def __init__(self, timeout_seconds: float = 5.0, workspace_root: Optional[str] = None):
         self.timeout_seconds = timeout_seconds
-        self.workspace_root = workspace_root or os.getcwd()
+        self.workspace_root = os.path.realpath(workspace_root or os.getcwd())
 
     def execute_skill(
         self,
