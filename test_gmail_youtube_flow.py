@@ -3,8 +3,9 @@ Smoke test: Simulate the Gmail -> YouTube flow end-to-end
 Tests: save a flow, run it, verify output, then clean up
 """
 import sys, os, json, subprocess, time
-sys.path.insert(0, r'c:\Users\pranav\Downloads\nous-windows-installer-src')
-os.chdir(r'c:\Users\pranav\Downloads\nous-windows-installer-src')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, BASE_DIR)
+os.chdir(BASE_DIR)
 
 from platform_core.intelligence.skills_engine import save_skill, get_skill, run_and_heal_skill
 from client.db import get_connection

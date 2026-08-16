@@ -1,6 +1,7 @@
 import sys, os, json
-sys.path.insert(0, r'c:\Users\pranav\Downloads\nous-windows-installer-src')
-os.chdir(r'c:\Users\pranav\Downloads\nous-windows-installer-src')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, BASE_DIR)
+os.chdir(BASE_DIR)
 
 # Test DB migration runs cleanly
 print('Testing DB init with nodes_json migration...')

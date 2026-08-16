@@ -97,3 +97,13 @@ def get_most_connected(tenant_id, limit=10):
     results = cursor.fetchall()
     conn.close()
     return [{"id": r[0], "label": r[1], "connections": r[2]} for r in results]
+
+def get_graph_data(tenant_id: str = "local"):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, type, label, properties FROM graph_nodes WHERE tenant_id = ?", (tenant_id,))
+    nodes = [{"id": r[0], "type": r[1], "label": r[2], "properties": json.loads(r[3]) if r[3] else {}} for r in cursor.fetchall()]
+    cursor.execute("SELECT source_id, target_id, relation, weight FROM graph_edges WHERE tenant_id = ?", (tenant_id,))
+    edges = [{"source": r[0], "target": r[1], "relation": r[2], "weight": r[3]} for r in cursor.fetchall()]
+    conn.close()
+    return {"nodes": nodes, "edges": edges}

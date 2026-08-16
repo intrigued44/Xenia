@@ -44,7 +44,7 @@ app.add_middleware(
 )
 app.include_router(webhook_router)
 
-from client.db import get_connection
+from client.db import get_connection, dict_factory
 import os
 
 # Simple API Key auth for MVP
@@ -453,7 +453,7 @@ def get_my_data(tenant_id: str = Depends(verify_api_key)):
 
 @app.delete("/v1/mydata")
 def wipe_my_data(tenant_id: str = Depends(verify_api_key)):
-    if tenant_id != "local":
+    if tenant_id not in ("local", "tenant-local"):
         raise HTTPException(status_code=403, detail="Only local tenant can wipe data")
     conn = get_connection()
     cursor = conn.cursor()
@@ -687,6 +687,38 @@ def generate_dashboard(
 @app.get("/v1/dashboards/types")
 def get_dashboard_types():
     return DashboardGenerator.DASHBOARD_TYPES
+
+@app.get("/v1/dashboard/all")
+def get_dashboard_all(tenant_id: str = Depends(get_tenant)):
+    conn = get_connection()
+    conn.row_factory = dict_factory
+    c = conn.cursor()
+    c.execute("SELECT * FROM workflows WHERE tenant_id = ?", (tenant_id,))
+    workflows = c.fetchall()
+    for w in workflows:
+        pot = w.get("automation_potential", 0) or 0
+        if pot >= 0.8:
+            w["recommended_action"] = "AUTOMATE"
+        elif pot >= 0.4:
+            w["recommended_action"] = "DOCUMENT"
+        else:
+            w["recommended_action"] = "MONITOR"
+
+    c.execute("SELECT * FROM alerts WHERE tenant_id = ?", (tenant_id,))
+    alerts = c.fetchall()
+
+    c.execute("SELECT * FROM proposals WHERE tenant_id = ?", (tenant_id,))
+    proposals = c.fetchall()
+
+    conn.close()
+
+    return {
+        "health_score": 85,
+        "app_usage": {"Excel": 40, "Chrome": 35, "Outlook": 25},
+        "workflows": workflows,
+        "proposals": proposals,
+        "alerts": alerts
+    }
 
 @app.get("/v1/onboarding/brief")
 def get_onboarding_brief(

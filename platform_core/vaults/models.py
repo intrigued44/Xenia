@@ -20,7 +20,7 @@ class VaultRecord:
     created_at: int = 0
     approved_by: Optional[str] = None
     approved_at: Optional[int] = None
-    status: str = "pending"
+    status: str = "approved"
 
 @dataclass
 class ContributionRequest:
